@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>체스 묘수풀이</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ece5d3;
+    --panel: #fbf8f0;
+    --panel-border: #d9d0ba;
+    --board-light: #f4eedd;
+    --board-dark: #4a5578;
+    --board-frame: #2c3350;
+    --accent-gold: #a97a2c;
+    --accent-good: #4f7a54;
+    --accent-bad: #a2483a;
+    --text-primary: #211f2c;
+    --text-muted: #6b6a7a;
+    --select-ring: #a97a2c;
+    --dot-color: #7a3b18;
+    --serif: 'Fraunces', Georgia, 'Times New Roman', serif;
+    --sans: 'IBM Plex Sans KR', 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12141c;
+      --panel: #1a1d2a;
+      --panel-border: #2c3044;
+      --board-light: #e9e1cc;
+      --board-dark: #333d5c;
+      --board-frame: #0c0e16;
+      --accent-gold: #c9a24b;
+      --accent-good: #7fa985;
+      --accent-bad: #c17663;
+      --text-primary: #f1ecdf;
+      --text-muted: #9a98ab;
+      --select-ring: #c9a24b;
+      --dot-color: #e8b04a;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #12141c;
+    --panel: #1a1d2a;
+    --panel-border: #2c3044;
+    --board-light: #e9e1cc;
+    --board-dark: #333d5c;
+    --board-frame: #0c0e16;
+    --accent-gold: #c9a24b;
+    --accent-good: #7fa985;
+    --accent-bad: #c17663;
+    --text-primary: #f1ecdf;
+    --text-muted: #9a98ab;
+    --select-ring: #c9a24b;
+    --dot-color: #e8b04a;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  html, body { height: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 980px; margin: 0 auto; padding: 40px 20px 64px; }
+
+  header.top { margin-bottom: 32px; }
+
+  .top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  header.top h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(28px, 4.5vw, 40px);
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    color: var(--text-primary);
+  }
+
+  header.top p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 60ch;
+    line-height: 1.6;
+  }
+
+  .lang-toggle {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .lang-btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .lang-btn.active {
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    font-weight: 600;
+  }
+  .lang-btn:focus-visible { outline: 2px solid var(--select-ring); outline-offset: 2px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 760px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .board-column { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+  .board-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .difficulty-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-muted);
+    border: 1px solid var(--panel-border);
+    border-radius: 999px;
+    padding: 4px 12px;
+    background: var(--panel);
+  }
+  .difficulty-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-gold); }
+  .difficulty-dot.easy { background: var(--accent-good); }
+  .difficulty-dot.hard { background: var(--accent-bad); }
+
+  .prompt-text { font-size: 15px; color: var(--text-primary); font-weight: 500; }
+
+  .board-frame {
+    position: relative;
+    background: var(--board-frame);
+    padding: 22px;
+    border-radius: 14px;
+    box-shadow: 0 18px 40px -22px rgba(0,0,0,0.45);
+  }
+
+  .board-inner { display: flex; gap: 8px; }
+
+  .rank-labels { display: flex; flex-direction: column; justify-content: space-around; }
+  .rank-labels span, .file-labels span {
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+    font-family: var(--sans);
+    width: 16px;
+    text-align: center;
+  }
+
+  .board-main { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .file-labels { display: flex; justify-content: space-around; }
+
+  .sq {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+  }
+  .sq.light { background: var(--board-light); }
+  .sq.dark { background: var(--board-dark); }
+
+  .sq.selected::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 2.5px solid var(--select-ring);
+    border-radius: 3px;
+    pointer-events: none;
+  }
+
+  .sq.flash-good { animation: flashGood 0.6s ease; }
+  .sq.flash-bad { animation: flashBad 0.5s ease; }
+  @keyframes flashGood {
+    0% { box-shadow: inset 0 0 0 999px rgba(127,169,133,0); }
+    35% { box-shadow: inset 0 0 0 999px rgba(127,169,133,0.55); }
+    100% { box-shadow: inset 0 0 0 999px rgba(127,169,133,0); }
+  }
+  @keyframes flashBad {
+    0% { box-shadow: inset 0 0 0 999px rgba(193,118,99,0); }
+    35% { box-shadow: inset 0 0 0 999px rgba(193,118,99,0.55); }
+    100% { box-shadow: inset 0 0 0 999px rgba(193,118,99,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sq.flash-good, .sq.flash-bad { animation: none; }
+  }
+
+  .legal-dot {
+    position: absolute;
+    width: 26%;
+    height: 26%;
+    border-radius: 50%;
+    background: var(--dot-color);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.45), 0 0 0 3px rgba(255,255,255,0.35);
+    pointer-events: none;
+  }
+  .legal-dot.capture {
+    width: 76%;
+    height: 76%;
+    background: transparent;
+    border: 4px solid var(--dot-color);
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.45), inset 0 0 0 2px rgba(255,255,255,0.3);
+  }
+
+  .piece {
+    font-size: clamp(24px, 5.2vw, 44px);
+    line-height: 1;
+    pointer-events: none;
+    transition: transform 0.2s ease-out;
+    z-index: 10;
+  }
+  .white-piece {
+    color: #fffaf0;
+    text-shadow:
+      -1.4px -1.4px 0 #14151d,
+      1.4px -1.4px 0 #14151d,
+      -1.4px 1.4px 0 #14151d,
+      1.4px 1.4px 0 #14151d,
+      0 3px 4px rgba(0,0,0,0.4);
+  }
+  .black-piece {
+    color: #0b0b10;
+    text-shadow:
+      -1px -1px 0 rgba(255,255,255,0.7),
+      1px -1px 0 rgba(255,255,255,0.7),
+      -1px 1px 0 rgba(255,255,255,0.7),
+      1px 1px 0 rgba(255,255,255,0.7),
+      0 3px 4px rgba(0,0,0,0.35);
+  }
+
+  .feedback { min-height: 26px; font-size: 14.5px; color: var(--text-muted); line-height: 1.5; }
+  .feedback.good { color: var(--accent-good); font-weight: 500; }
+  .feedback.bad { color: var(--accent-bad); font-weight: 500; }
+
+  .panel { display: flex; flex-direction: column; gap: 16px; }
+  .panel-card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px; padding: 18px 20px; }
+
+  .score-label { font-size: 12.5px; color: var(--text-muted); margin-bottom: 4px; }
+  .score-value { font-family: var(--serif); font-size: 34px; font-weight: 600; color: var(--accent-gold); line-height: 1; }
+
+  .progress-row { display: flex; justify-content: space-between; font-size: 13.5px; color: var(--text-muted); margin-top: 14px; }
+  .progress-bar { margin-top: 8px; height: 5px; border-radius: 999px; background: var(--panel-border); overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent-gold); border-radius: 999px; transition: width 0.3s ease; }
+
+  .controls { display: flex; flex-direction: column; gap: 8px; }
+
+  button {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  button:hover { border-color: var(--accent-gold); }
+  button:focus-visible { outline: 2px solid var(--select-ring); outline-offset: 2px; }
+  button.primary { background: var(--accent-gold); border-color: var(--accent-gold); color: #1c1408; }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .next-row { display: none; }
+  .next-row.show { display: block; }
+
+  .done-card { display: none; text-align: center; padding: 28px 20px; }
+  .done-card.show { display: block; }
+  .done-card h2 { font-family: var(--serif); font-size: 26px; margin: 0 0 8px; }
+  .done-card p { color: var(--text-muted); font-size: 14.5px; margin: 0 0 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <div class="top-row">
+      <div>
+        <h1 id="title-text">체스 묘수풀이</h1>
+        <p id="subtitle-text"></p>
+      </div>
+      <div class="lang-toggle">
+        <button id="lang-ko" class="lang-btn" type="button">한국어</button>
+        <button id="lang-en" class="lang-btn" type="button">English</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <div class="board-column">
+      <div class="board-meta">
+        <span class="difficulty-badge"><span id="diff-dot" class="difficulty-dot"></span><span id="diff-label"></span></span>
+        <span class="prompt-text" id="prompt-text"></span>
+      </div>
+
+      <div class="board-frame">
+        <div class="board-inner">
+          <div class="rank-labels" id="rank-labels"></div>
+          <div class="board-main">
+            <div class="board" id="board"></div>
+            <div class="file-labels" id="file-labels"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feedback" id="feedback" aria-live="polite"></div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-card">
+        <div class="score-label" id="score-label-text"></div>
+        <div class="score-value" id="score">0</div>
+        <div class="progress-row">
+          <span id="progress-text">1 / 15</span>
+          <span id="turn-note-inline"></span>
+        </div>
+        <div class="progress-bar"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <div class="panel-card controls">
+        <button id="hint-btn" type="button"></button>
+        <button id="reveal-btn" type="button"></button>
+        <div class="next-row" id="next-row">
+          <button id="next-btn" class="primary" type="button"></button>
+        </div>
+        <button id="reset-btn" type="button"></button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="panel-card done-card" id="done-card">
+    <h2 id="done-title"></h2>
+    <p id="done-summary"></p>
+    <button id="restart-btn" class="primary" type="button"></button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STRINGS = {
+    ko: {
+      title: '체스 묘수풀이',
+      subtitle: '주어진 국면에서 가장 좋은 수를 찾아보세요. 기물을 클릭하면 이동 가능한 칸이 표시됩니다. 시간 제한은 없으니 편하게 생각하고 두세요.',
+      scoreLabel: '점수',
+      hintBtn: '힌트 보기',
+      revealBtn: '정답 보기',
+      nextBtn: '다음 문제 →',
+      resetBtn: '새로운 문제들로 다시 시작',
+      restartBtn: '새로운 15문제 도전하기',
+      doneTitle: '모든 문제를 풀었습니다',
+      doneSummary: function (score, total) { return '총 ' + total + '문제 중 ' + score + '점을 획득했습니다.'; },
+      whiteTurn: '당신은 백입니다',
+      blackTurn: '당신은 흑입니다',
+      correct: function (piece, from, to, pts) { return '정답입니다! ' + piece + ' ' + from + ' → ' + to + ' (+' + pts + '점)'; },
+      wrong: function (penalty) { return '아쉽네요, 다른 수를 찾아보세요. (-' + penalty + '점)'; },
+      revealText: function (piece, from, to) { return '정답: ' + piece + ' ' + from + ' → ' + to + ' (점수 없음)'; },
+      hintText: function (hint) { return '힌트: ' + hint; },
+      diff: { easy: '쉬움', medium: '보통', hard: '어려움' },
+      pieces: { P: '폰', N: '나이트', B: '비숍', R: '룩', Q: '퀸', K: '킹' }
+    },
+    en: {
+      title: 'Chess Puzzle Trainer',
+      subtitle: "Find the best move in each position. Click a piece to see where it can legally move. There's no time limit, so take your time.",
+      scoreLabel: 'Score',
+      hintBtn: 'Show hint',
+      revealBtn: 'Reveal answer',
+      nextBtn: 'Next puzzle →',
+      resetBtn: 'Restart with new puzzles',
+      restartBtn: 'Try 15 new puzzles',
+      doneTitle: 'You solved every puzzle',
+      doneSummary: function (score, total) { return 'You scored ' + score + ' points out of ' + total + ' puzzles.'; },
+      whiteTurn: 'You are playing White',
+      blackTurn: 'You are playing Black',
+      correct: function (piece, from, to, pts) { return 'Correct! ' + piece + ' ' + from + ' → ' + to + ' (+' + pts + ' pts)'; },
+      wrong: function (penalty) { return 'Not quite — try another move. (-' + penalty + ' pts)'; },
+      revealText: function (piece, from, to) { return 'Answer: ' + piece + ' ' + from + ' → ' + to + ' (no points)'; },
+      hintText: function (hint) { return 'Hint: ' + hint; },
+      diff: { easy: 'Easy', medium: 'Medium', hard: 'Hard' },
+      pieces: { P: 'Pawn', N: 'Knight', B: 'Bishop', R: 'Rook', Q: 'Queen', K: 'King' }
+    }
+  };
+
+  const PIECE_GLYPHS = {
+    K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
+    k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟'
+  };
+  const DIFF_POINTS = { easy: 10, medium: 20, hard: 30 };
+  const WRONG_PENALTY = 5;
+
+  const ALL_PUZZLES = [
+    { fen: "6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1", solution: ["a1a8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "룩이 8번째 랭크로 들어가면 흑 킹은 폰에 갇힙니다.", hintEn: "Once the rook reaches the 8th rank, the black king is trapped." },
+    { fen: "7k/R7/8/8/8/8/8/1R4K1 w - - 0 1", solution: ["b1b8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "두 룩이 7, 8랭크를 장악하면 사다리 외통이 됩니다.", hintEn: "With two rooks covering the 7th and 8th rank, it's a ladder mate." },
+    { fen: "6k1/8/8/8/r7/8/8/3Q2K1 w - - 0 1", solution: ["d1a4"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "퀸은 대각선으로도 움직일 수 있습니다.", hintEn: "Remember the queen can move diagonally." },
+    { fen: "6k1/8/8/8/8/n7/8/2B3K1 w - - 0 1", solution: ["c1a3"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "비숍의 대각선에 지켜지지 않는 나이트가 있습니다.", hintEn: "An undefended knight sits on the bishop's diagonal." },
+    { fen: "6k1/5ppp/8/8/8/8/8/Q5K1 w - - 0 1", solution: ["a1a8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "퀸도 룩처럼 8번째 랭크를 장악할 수 있습니다.", hintEn: "The queen can control the 8th rank just like a rook." },
+    { fen: "r3k3/8/8/8/8/8/5PPP/6K1 b - - 0 1", solution: ["a8a1"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "백 킹이 자신의 폰들에 갇혀 있습니다.", hintEn: "The white king is trapped by its own pawns." },
+    { fen: "6k1/8/3b4/8/4N3/8/8/6K1 w - - 0 1", solution: ["e4d6"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "나이트의 점프 경로를 잘 살펴보세요.", hintEn: "Trace the knight's jump carefully." },
+    { fen: "6k1/5ppp/8/8/8/8/8/3R2K1 w - - 0 1", solution: ["d1d8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "백 룩이 8랭크로 침투할 수 있습니다.", hintEn: "The white rook can infiltrate the 8th rank." },
+    { fen: "6k1/5ppp/8/8/8/8/8/4R1K1 w - - 0 1", solution: ["e1e8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "백 룩이 8랭크로 침투할 수 있습니다.", hintEn: "The white rook can infiltrate the 8th rank." },
+    { fen: "k7/8/8/8/8/8/6PP/6RK w - - 0 1", solution: ["g1g8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "흑 킹이 구석에 몰려 있습니다.", hintEn: "The black king is cornered." },
+    { fen: "4k3/8/8/8/8/8/2q5/2Q3K1 w - - 0 1", solution: ["c1c2"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "흑 퀸이 백 퀸에게 공격받고 있습니다.", hintEn: "The black queen is under attack by the white queen." },
+    { fen: "6k1/8/8/3n4/8/8/3R4/6K1 w - - 0 1", solution: ["d2d5"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "룩이 같은 파일의 나이트를 노리고 있습니다.", hintEn: "The rook is targeting the knight on the same file." },
+    { fen: "6k1/2b5/8/8/8/2B5/8/6K1 w - - 0 1", solution: ["c3c7"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "비숍끼리 같은 대각선에 놓여 있습니다.", hintEn: "The bishops are on the same diagonal." },
+    { fen: "r7/8/8/8/8/8/R7/6K1 w - - 0 1", solution: ["a2a8"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "룩끼리 마주보고 있습니다.", hintEn: "The rooks are facing each other." },
+    { fen: "1k6/1pp5/8/8/8/8/8/1R5K w - - 0 1", solution: ["b1b8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "흑 킹이 폰에 막혀 피할 곳이 없습니다.", hintEn: "The black king is blocked by its pawns and cannot escape." },
+    { fen: "6k1/p4ppp/8/8/8/8/8/R5K1 w - - 0 1", solution: ["a1a8"], difficulty: "easy", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "룩이 8랭크로 이동하면 치명적입니다.", hintEn: "Moving the rook to the 8th rank is lethal." },
+    { fen: "6k1/8/8/8/3q4/8/3Q4/6K1 w - - 0 1", solution: ["d2d4"], difficulty: "easy", promptKo: "상대 기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "백 퀸이 흑 퀸을 노립니다.", hintEn: "The white queen targets the black queen." },
+
+    { fen: "4k3/2q5/5r2/8/8/2N5/8/6K1 w - - 0 1", solution: ["c3d5"], difficulty: "medium", promptKo: "포크(Fork)를 찾아보세요", promptEn: "Find the fork", hintKo: "나이트 점프로 퀸과 룩을 동시에 공격할 수 있습니다.", hintEn: "One knight jump attacks both the queen and the rook." },
+    { fen: "4r3/8/8/8/4Q3/8/8/4K3 b - - 0 1", solution: ["e8e4"], difficulty: "medium", promptKo: "체크와 동시에 기물을 따내세요", promptEn: "Check and win material", hintKo: "백 퀸이 자신의 킹 앞을 가리고 있습니다.", hintEn: "The white queen is pinned to its king." },
+    { fen: "6k1/8/8/2n5/5R2/8/8/4K3 b - - 0 1", solution: ["c5d3"], difficulty: "medium", promptKo: "포크(Fork)를 찾아보세요", promptEn: "Find the fork", hintKo: "나이트가 체크를 걸며 룩도 공격할 수 있습니다.", hintEn: "Knight gives check and attacks the rook simultaneously." },
+    { fen: "8/4k3/2q5/8/8/4N3/8/6K1 w - - 0 1", solution: ["e3d5"], difficulty: "medium", promptKo: "포크(Fork)를 찾아보세요", promptEn: "Find the fork", hintKo: "나이트로 킹과 퀸을 동시에 노리세요.", hintEn: "Target both the king and queen with your knight." },
+    { fen: "8/2k5/4q3/8/8/2N5/8/6K1 w - - 0 1", solution: ["c3d5"], difficulty: "medium", promptKo: "포크(Fork)를 찾아보세요", promptEn: "Find the fork", hintKo: "나이트로 킹과 퀸을 동시에 노리세요.", hintEn: "Target both the king and queen with your knight." },
+    { fen: "6k1/8/4r3/8/8/4B3/8/4K3 b - - 0 1", solution: ["e6e3"], difficulty: "medium", promptKo: "핀(Pin)을 활용해 기물을 따내세요", promptEn: "Exploit the pin to win material", hintKo: "백 비숍은 킹 앞에 묶여 피할 수 없습니다.", hintEn: "The white bishop is pinned to the king and cannot move." },
+    { fen: "8/3k4/3q4/8/8/3B4/8/3K4 b - - 0 1", solution: ["d6d3"], difficulty: "medium", promptKo: "핀(Pin)을 활용해 기물을 따내세요", promptEn: "Exploit the pin to win material", hintKo: "백 비숍은 방어받지 못한 채 핀에 걸려 있습니다.", hintEn: "The white bishop is pinned and undefended." },
+    { fen: "7k/8/8/2q5/8/8/2B5/2K5 b - - 0 1", solution: ["c5c2"], difficulty: "medium", promptKo: "기물을 안전하게 따내세요", promptEn: "Win material safely", hintKo: "백 비숍을 공짜로 잡을 수 있습니다.", hintEn: "The white bishop can be taken for free." },
+    { fen: "8/8/3k4/8/4R3/3q4/8/4K3 b - - 0 1", solution: ["d3e4"], difficulty: "medium", promptKo: "핀(Pin)을 활용해 기물을 따내세요", promptEn: "Exploit the pin to win material", hintKo: "백 룩이 킹 앞에 묶여 도망갈 수 없습니다.", hintEn: "The white rook is pinned and cannot escape." },
+    { fen: "6k1/4q3/8/8/4R3/8/8/6K1 w - - 0 1", solution: ["e4e7"], difficulty: "medium", promptKo: "상대 퀸을 잡아내세요", promptEn: "Capture the enemy queen", hintKo: "룩과 퀸이 같은 파일에 있습니다.", hintEn: "The rook and queen are on the same file." },
+    { fen: "6k1/2r5/8/8/2Q5/8/8/6K1 w - - 0 1", solution: ["c4c7"], difficulty: "medium", promptKo: "상대 기물을 잡아내세요", promptEn: "Capture the enemy piece", hintKo: "퀸의 대각선 공격 범위에 룩이 있습니다.", hintEn: "The rook is in the diagonal attack range of the queen." },
+    { fen: "8/8/4k3/8/8/4N3/2r5/6K1 w - - 0 1", solution: ["e3c2"], difficulty: "medium", promptKo: "방어받지 않는 기물을 잡으세요", promptEn: "Capture the undefended piece", hintKo: "나이트가 룩을 공격하고 있습니다.", hintEn: "The knight is attacking the rook." },
+    { fen: "8/2k5/8/4r3/8/2Q5/8/6K1 w - - 0 1", solution: ["c3e5"], difficulty: "medium", promptKo: "체크를 활용해 기물을 따내세요", promptEn: "Use check to win material", hintKo: "퀸으로 체크를 걸며 룩을 잡을 수 있습니다.", hintEn: "The queen can capture the rook while giving check." },
+    { fen: "8/8/1k6/8/3b4/8/1Q6/6K1 w - - 0 1", solution: ["b2d4"], difficulty: "medium", promptKo: "체크를 활용해 기물을 따내세요", promptEn: "Use check to win material", hintKo: "퀸으로 비숍을 잡으면 체크가 됩니다.", hintEn: "Capturing the bishop with the queen gives a check." },
+    { fen: "8/8/6k1/8/3r4/8/6Q1/6K1 w - - 0 1", solution: ["g2d4"], difficulty: "medium", promptKo: "기물을 공짜로 따내세요", promptEn: "Win a free piece", hintKo: "퀸의 대각선에 지켜지지 않는 룩이 있습니다.", hintEn: "An undefended rook sits on the queen's diagonal." },
+    { fen: "6k1/8/8/8/3q4/3N4/8/6K1 b - - 0 1", solution: ["d4d3"], difficulty: "medium", promptKo: "핀(Pin)을 찔러 기물을 따내세요", promptEn: "Exploit the pin to win material", hintKo: "나이트가 핀에 걸려 움직일 수 없습니다.", hintEn: "The knight is pinned and cannot move." },
+    { fen: "8/8/k7/1r6/8/8/1Q6/6K1 w - - 0 1", solution: ["b2b5"], difficulty: "medium", promptKo: "체크를 걸며 기물을 잡아내세요", promptEn: "Check and capture", hintKo: "퀸이 룩을 잡으면 체크가 됩니다.", hintEn: "Capturing the rook gives check." },
+
+    { fen: "4k3/8/8/4q3/8/8/8/4R1K1 w - - 0 1", solution: ["e1e5"], difficulty: "hard", promptKo: "핀(Pin)에 걸린 기물을 공략하세요", promptEn: "Attack the pinned piece", hintKo: "흑 퀸은 자신의 킹 앞을 가리고 있어 도망갈 수 없습니다.", hintEn: "The queen is blocking the king's file — it's pinned." },
+    { fen: "7k/R7/8/8/8/8/8/3R2K1 w - - 0 1", solution: ["d1d8"], difficulty: "hard", promptKo: "외통수를 찾아보세요 (룩 선택 주의)", promptEn: "Find the checkmate (choose rook carefully)", hintKo: "이미 7랭크를 막고 있는 룩 대신, 다른 룩으로 8랭크를 장악하세요.", hintEn: "One rook controls the 7th rank. Use the other for the 8th." },
+    { fen: "7k/6q1/8/8/8/8/1B6/6K1 w - - 0 1", solution: ["b2g7"], difficulty: "hard", promptKo: "유리한 기물 교환을 하세요", promptEn: "Make a favorable trade", hintKo: "비숍으로 퀸을 잡으면 상대 킹이 다시 잡더라도 큰 이득입니다.", hintEn: "Capturing the queen is a great trade even if the king recaptures." },
+    { fen: "6k1/8/8/8/8/3r4/3Q4/3K4 b - - 0 1", solution: ["d3d2"], difficulty: "hard", promptKo: "핀(Pin)을 활용해 퀸을 잡으세요", promptEn: "Use the pin to capture the queen", hintKo: "백 퀸은 킹 앞을 가리고 있어 피할 수 없습니다.", hintEn: "The white queen is pinned to the king." },
+    { fen: "8/8/3k4/3r4/8/3Q4/3K4/8 w - - 0 1", solution: ["d3d5"], difficulty: "hard", promptKo: "유리한 기물 교환을 하세요", promptEn: "Make a favorable trade", hintKo: "퀸으로 룩을 잡으면서 체크를 부를 수 있습니다.", hintEn: "Capture the rook with the queen, giving check." },
+    { fen: "7k/6p1/5p1p/8/8/8/7P/5R1K w - - 0 1", solution: ["f1f8"], difficulty: "hard", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "흑 킹은 스스로 폰에 갇혀 피할 곳이 제한적입니다.", hintEn: "The black king is constrained by its own pawns." },
+    { fen: "5k2/5p1p/8/8/8/8/7P/4R1K1 w - - 0 1", solution: ["e1e8"], difficulty: "hard", promptKo: "외통수를 찾아보세요", promptEn: "Find the checkmate", hintKo: "룩을 8랭크로 보내 킹을 구석으로 몹니다.", hintEn: "Send the rook to the 8th rank to corner the king." },
+    { fen: "6k1/8/3q4/8/8/3B4/8/3Q2K1 w - - 0 1", solution: ["d3h7"], difficulty: "hard", promptKo: "발견된 공격(Discovered Attack)을 찾아보세요", promptEn: "Find the discovered attack", hintKo: "비숍이 움직이면서 퀸의 길을 열어 흑 퀸을 공격합니다.", hintEn: "Moving the bishop opens the queen's path to attack the black queen." },
+    { fen: "6k1/3q4/8/8/8/3B4/8/3Q2K1 w - - 0 1", solution: ["d3h7"], difficulty: "hard", promptKo: "스큐어(Skewer) 또는 발견된 공격을 찾아보세요", promptEn: "Find the skewer / discovered attack", hintKo: "비숍으로 체크를 걸어 킹을 유인하면 뒤의 퀸을 잡을 수 있습니다.", hintEn: "Check with the bishop to lure the king and expose the queen." },
+    { fen: "6k1/8/8/8/8/2q5/2B5/2Q3K1 w - - 0 1", solution: ["c2h7"], difficulty: "hard", promptKo: "발견된 공격(Discovered Attack)을 찾아보세요", promptEn: "Find the discovered attack", hintKo: "비숍으로 체크를 부르면 백 퀸이 흑 퀸을 공격할 수 있습니다.", hintEn: "Check with the bishop reveals an attack on the black queen." },
+    { fen: "8/k7/8/2q5/8/2B5/8/2Q3K1 w - - 0 1", solution: ["c3d4"], difficulty: "hard", promptKo: "핀(Pin)을 활용해 상대 기물을 묶으세요", promptEn: "Pin the enemy piece", hintKo: "비숍을 움직여 흑 퀸을 킹 앞에 묶어버리세요.", hintEn: "Move the bishop to pin the black queen to its king." },
+    { fen: "7k/8/8/8/8/6q1/6B1/6Q1 w - - 0 1", solution: ["g2d5"], difficulty: "hard", promptKo: "발견된 공격(Discovered Attack)", promptEn: "Discovered attack", hintKo: "비숍이 움직이며 길을 열고 동시에 다른 위협을 가합니다.", hintEn: "The bishop moves to open a path while creating a threat." },
+    { fen: "7k/2q5/8/8/8/2R5/8/2K5 w - - 0 1", solution: ["c3c7"], difficulty: "hard", promptKo: "기물을 공짜로 획득하세요", promptEn: "Win material", hintKo: "흑 퀸이 룩에게 바로 공격받고 있습니다.", hintEn: "The black queen is directly attacked by the rook." },
+    { fen: "6k1/8/8/8/8/8/8/R4RK1 w - - 0 1", solution: ["a1a8"], difficulty: "hard", promptKo: "외통수를 향한 첫 단추를 채우세요", promptEn: "Start the checkmating net", hintKo: "한쪽 룩으로 킹의 퇴로를 막거나 공격을 시작하세요.", hintEn: "Use one rook to block or attack the king." },
+    { fen: "6k1/8/8/8/8/8/1p6/1R4K1 w - - 0 1", solution: ["b1b2"], difficulty: "hard", promptKo: "상대의 승진(Promotion) 위협을 막으세요", promptEn: "Stop the promotion threat", hintKo: "위험한 폰을 안전하게 제거하세요.", hintEn: "Safely remove the dangerous pawn." },
+    { fen: "k7/2q5/8/8/8/2B5/8/2Q3K1 w - - 0 1", solution: ["c3e5"], difficulty: "hard", promptKo: "핀(Pin)을 걸어 기물을 획득하세요", promptEn: "Pin and win", hintKo: "비숍을 움직여 흑 퀸이 도망가지 못하게 묶어버립니다.", hintEn: "Move the bishop to pin the black queen to the king." }
+  ];
+
+  let currentSessionPuzzles = [];
+  let lang = 'ko';
+  try {
+    const saved = localStorage.getItem('chess-puzzle-lang');
+    if (saved === 'en' || saved === 'ko') lang = saved;
+  } catch (e) {}
+
+  let puzzleIndex = 0;
+  let score = 0;
+  let board = [];
+  let playerColor = 'w';
+  let selected = null;
+  let legalTargets = [];
+  let solved = false;
+
+  const boardEl = document.getElementById('board');
+  const scoreEl = document.getElementById('score');
+  const progressTextEl = document.getElementById('progress-text');
+  const progressFillEl = document.getElementById('progress-fill');
+  const feedbackEl = document.getElementById('feedback');
+  const promptTextEl = document.getElementById('prompt-text');
+  const diffLabelEl = document.getElementById('diff-label');
+  const diffDotEl = document.getElementById('diff-dot');
+  const turnNoteEl = document.getElementById('turn-note-inline');
+  const hintBtn = document.getElementById('hint-btn');
+  const revealBtn = document.getElementById('reveal-btn');
+  const nextRow = document.getElementById('next-row');
+  const nextBtn = document.getElementById('next-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const doneCard = document.getElementById('done-card');
+  const doneSummary = document.getElementById('done-summary');
+  const doneTitleEl = document.getElementById('done-title');
+  const restartBtn = document.getElementById('restart-btn');
+  const rankLabelsEl = document.getElementById('rank-labels');
+  const fileLabelsEl = document.getElementById('file-labels');
+  const titleEl = document.getElementById('title-text');
+  const subtitleEl = document.getElementById('subtitle-text');
+  const scoreLabelEl = document.getElementById('score-label-text');
+  const langKoBtn = document.getElementById('lang-ko');
+  const langEnBtn = document.getElementById('lang-en');
+
+  const sounds = {
+    move: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/move-self.mp3'),
+    capture: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/capture.mp3'),
+    correct: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/notify.mp3'),
+    wrong: new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/illegal.mp3')
+  };
+
+  function t() { return STRINGS[lang]; }
+  function isWhite(p) { return p === p.toUpperCase(); }
+  function isBlack(p) { return p === p.toLowerCase(); }
+  function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+  function sqName(r, c) { return String.fromCharCode(97 + c) + (8 - r); }
+
+  function parseFEN(fen) {
+    const rows = fen.split(' ')[0].split('/');
+    const b = [];
+    for (const row of rows) {
+      const boardRow = [];
+      for (const ch of row) {
+        if (/\d/.test(ch)) {
+          for (let i = 0; i < Number(ch); i++) boardRow.push(null);
+        } else {
+          boardRow.push(ch);
+        }
+      }
+      b.push(boardRow);
+    }
+    return b;
+  }
+
+  function generateMoves(b, r, c) {
+    const piece = b[r][c];
+    if (!piece) return [];
+    const white = isWhite(piece);
+    const type = piece.toUpperCase();
+    const moves = [];
+
+    function tryStep(nr, nc) {
+      if (!inBounds(nr, nc)) return;
+      const target = b[nr][nc];
+      if (!target) { moves.push([nr, nc]); return; }
+      if ((white && isBlack(target)) || (!white && isWhite(target))) moves.push([nr, nc]);
+    }
+    function trySlide(dr, dc) {
+      let nr = r + dr, nc = c + dc;
+      while (inBounds(nr, nc)) {
+        const target = b[nr][nc];
+        if (!target) { moves.push([nr, nc]); nr += dr; nc += dc; continue; }
+        if ((white && isBlack(target)) || (!white && isWhite(target))) moves.push([nr, nc]);
+        break;
+      }
+    }
+
+    if (type === 'N') {
+      [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]].forEach(function (o) { tryStep(r+o[0], c+o[1]); });
+    } else if (type === 'K') {
+      [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]].forEach(function (o) { tryStep(r+o[0], c+o[1]); });
+    } else if (type === 'P') {
+      const dir = white ? -1 : 1;
+      const startRow = white ? 6 : 1;
+      if (inBounds(r+dir, c) && !b[r+dir][c]) {
+        moves.push([r+dir, c]);
+        if (r === startRow && !b[r+2*dir][c]) moves.push([r+2*dir, c]);
+      }
+      [-1, 1].forEach(function (dc) {
+        const nr = r+dir, nc = c+dc;
+        if (inBounds(nr, nc) && b[nr][nc]) {
+          const tgt = b[nr][nc];
+          if ((white && isBlack(tgt)) || (!white && isWhite(tgt))) moves.push([nr, nc]);
+        }
+      });
+    } else {
+      let dirs = [];
+      if (type === 'R') dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+      if (type === 'B') dirs = [[1,1],[1,-1],[-1,1],[-1,-1]];
+      if (type === 'Q') dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      dirs.forEach(function (d) { trySlide(d[0], d[1]); });
+    }
+    return moves;
+  }
+
+  function currentPuzzle() { return currentSessionPuzzles[puzzleIndex]; }
+
+  function applyStaticStrings() {
+    const s = t();
+    titleEl.textContent = s.title;
+    subtitleEl.textContent = s.subtitle;
+    scoreLabelEl.textContent = s.scoreLabel;
+    hintBtn.textContent = s.hintBtn;
+    revealBtn.textContent = s.revealBtn;
+    nextBtn.textContent = s.nextBtn;
+    resetBtn.textContent = s.resetBtn;
+    restartBtn.textContent = s.restartBtn;
+    doneTitleEl.textContent = s.doneTitle;
+    doneSummary.textContent = s.doneSummary(score, currentSessionPuzzles.length);
+    langKoBtn.classList.toggle('active', lang === 'ko');
+    langEnBtn.classList.toggle('active', lang === 'en');
+    document.documentElement.lang = lang;
+  }
+
+  function applyPuzzleStrings() {
+    const s = t();
+    const p = currentPuzzle();
+    if (!p) return;
+    promptTextEl.textContent = lang === 'ko' ? p.promptKo : p.promptEn;
+    diffLabelEl.textContent = s.diff[p.difficulty];
+    turnNoteEl.textContent = playerColor === 'w' ? s.whiteTurn : s.blackTurn;
+  }
+
+  function setLang(l) {
+    lang = l;
+    try { localStorage.setItem('chess-puzzle-lang', l); } catch (e) {}
+    applyStaticStrings();
+    applyPuzzleStrings();
+  }
+
+  function loadPuzzle() {
+    const p = currentPuzzle();
+    board = parseFEN(p.fen);
+    playerColor = p.fen.split(' ')[1] || 'w';
+    selected = null;
+    legalTargets = [];
+    solved = false;
+    feedbackEl.textContent = '';
+    feedbackEl.className = 'feedback';
+    diffDotEl.className = 'difficulty-dot ' + p.difficulty;
+    progressTextEl.textContent = (puzzleIndex + 1) + ' / ' + currentSessionPuzzles.length;
+    progressFillEl.style.width = Math.round((puzzleIndex / currentSessionPuzzles.length) * 100) + '%';
+    hintBtn.disabled = false;
+    revealBtn.disabled = false;
+    nextRow.classList.remove('show');
+    doneCard.classList.remove('show');
+    applyPuzzleStrings();
+    renderLabels();
+    render();
+  }
+
+  function renderLabels() {
+    rankLabelsEl.innerHTML = '';
+    for (let r = 8; r >= 1; r--) {
+      const s = document.createElement('span');
+      s.textContent = r;
+      rankLabelsEl.appendChild(s);
+    }
+    fileLabelsEl.innerHTML = '';
+    ['a','b','c','d','e','f','g','h'].forEach(function (f) {
+      const s = document.createElement('span');
+      s.textContent = f;
+      fileLabelsEl.appendChild(s);
+    });
+  }
+
+  function render() {
+    boardEl.innerHTML = '';
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const cell = document.createElement('div');
+        const isLight = (r + c) % 2 === 0;
+        cell.className = 'sq ' + (isLight ? 'light' : 'dark');
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        const piece = board[r][c];
+        if (piece) {
+          const span = document.createElement('span');
+          span.className = 'piece ' + (isWhite(piece) ? 'white-piece' : 'black-piece');
+          span.textContent = PIECE_GLYPHS[piece];
+          cell.appendChild(span);
+        }
+        if (selected && selected[0] === r && selected[1] === c) cell.classList.add('selected');
+        if (legalTargets.some(function (t2) { return t2[0] === r && t2[1] === c; })) {
+          const dot = document.createElement('div');
+          dot.className = 'legal-dot' + (piece ? ' capture' : '');
+          cell.appendChild(dot);
+        }
+        cell.addEventListener('click', onSquareClick);
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function onSquareClick(e) {
+    if (solved) return;
+    const r = Number(e.currentTarget.dataset.r);
+    const c = Number(e.currentTarget.dataset.c);
+    const piece = board[r][c];
+
+    if (selected) {
+      const isTarget = legalTargets.some(function (t2) { return t2[0] === r && t2[1] === c; });
+      if (isTarget) { attemptMove(selected[0], selected[1], r, c); return; }
+      if (piece && ((playerColor === 'w' && isWhite(piece)) || (playerColor === 'b' && isBlack(piece)))) {
+        selected = [r, c];
+        legalTargets = generateMoves(board, r, c);
+        render();
+        return;
+      }
+      selected = null; legalTargets = []; render();
+      return;
+    }
+
+    if (piece && ((playerColor === 'w' && isWhite(piece)) || (playerColor === 'b' && isBlack(piece)))) {
+      selected = [r, c];
+      legalTargets = generateMoves(board, r, c);
+      render();
+    }
+  }
+
+  function attemptMove(fr, fc, tr, tc) {
+    const s = t();
+    const p = currentPuzzle();
+    const moveStr = sqName(fr, fc) + sqName(tr, tc);
+    const isCorrect = p.solution[0] === moveStr;
+    const piece = board[fr][fc];
+    const targetPiece = board[tr][tc];
+
+    if (isCorrect) {
+      if (targetPiece) sounds.capture.play().catch(()=>{});
+      else sounds.move.play().catch(()=>{});
+      setTimeout(() => sounds.correct.play().catch(()=>{}), 300);
+
+      board[tr][tc] = piece; board[fr][fc] = null;
+      selected = null; legalTargets = []; solved = true;
+      render();
+      flashSquare(tr, tc, 'good');
+      const pts = DIFF_POINTS[p.difficulty];
+      score += pts;
+      scoreEl.textContent = score;
+      progressFillEl.style.width = Math.round(((puzzleIndex + 1) / currentSessionPuzzles.length) * 100) + '%';
+      const pieceName = s.pieces[piece.toUpperCase()];
+      feedbackEl.textContent = s.correct(pieceName, sqName(fr, fc), sqName(tr, tc), pts);
+      feedbackEl.className = 'feedback good';
+      hintBtn.disabled = true; revealBtn.disabled = true;
+      nextRow.classList.add('show');
+    } else {
+      sounds.wrong.play().catch(()=>{});
+      flashSquare(tr, tc, 'bad');
+      score = Math.max(0, score - WRONG_PENALTY);
+      scoreEl.textContent = score;
+      feedbackEl.textContent = s.wrong(WRONG_PENALTY);
+      feedbackEl.className = 'feedback bad';
+      selected = null; legalTargets = [];
+      render();
+    }
+  }
+
+  function flashSquare(r, c, kind) {
+    const idx = r * 8 + c;
+    const cell = boardEl.children[idx];
+    if (!cell) return;
+    cell.classList.add(kind === 'good' ? 'flash-good' : 'flash-bad');
+    setTimeout(function () { cell.classList.remove('flash-good', 'flash-bad'); }, 650);
+  }
+
+  hintBtn.addEventListener('click', function () {
+    const s = t();
+    const p = currentPuzzle();
+    feedbackEl.textContent = s.hintText(lang === 'ko' ? p.hintKo : p.hintEn);
+    feedbackEl.className = 'feedback';
+  });
+
+  revealBtn.addEventListener('click', function () {
+    if (solved) return;
+    const s = t();
+    const p = currentPuzzle();
+    const from = p.solution[0].slice(0, 2), to = p.solution[0].slice(2, 4);
+    const fr = 8 - Number(from[1]), fc = from.charCodeAt(0) - 97;
+    const tr = 8 - Number(to[1]), tc = to.charCodeAt(0) - 97;
+    const piece = board[fr][fc];
+    
+    board[tr][tc] = piece; board[fr][fc] = null;
+    selected = null; legalTargets = []; solved = true;
+    render();
+    flashSquare(tr, tc, 'good');
+    const pieceName = s.pieces[piece.toUpperCase()];
+    feedbackEl.textContent = s.revealText(pieceName, from, to);
+    feedbackEl.className = 'feedback';
+    hintBtn.disabled = true; revealBtn.disabled = true;
+    nextRow.classList.add('show');
+  });
+
+  nextBtn.addEventListener('click', function () {
+    puzzleIndex += 1;
+    if (puzzleIndex >= currentSessionPuzzles.length) {
+      document.querySelector('.layout').style.display = 'none';
+      doneSummary.textContent = t().doneSummary(score, currentSessionPuzzles.length);
+      doneCard.classList.add('show');
+      return;
+    }
+    loadPuzzle();
+  });
+
+  function shuffle(array) {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex !== 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+    return array;
+  }
+
+  function startNewSession() {
+    const easys = shuffle(ALL_PUZZLES.filter(p => p.difficulty === 'easy')).slice(0, 5);
+    const mediums = shuffle(ALL_PUZZLES.filter(p => p.difficulty === 'medium')).slice(0, 5);
+    const hards = shuffle(ALL_PUZZLES.filter(p => p.difficulty === 'hard')).slice(0, 5);
+
+    currentSessionPuzzles = [].concat(easys, mediums, hards);
+
+    puzzleIndex = 0; 
+    score = 0;
+    scoreEl.textContent = '0';
+    document.querySelector('.layout').style.display = 'grid';
+    doneCard.classList.remove('show');
+    loadPuzzle();
+  }
+
+  resetBtn.addEventListener('click', startNewSession);
+  restartBtn.addEventListener('click', startNewSession);
+  langKoBtn.addEventListener('click', function () { setLang('ko'); });
+  langEnBtn.addEventListener('click', function () { setLang('en'); });
+
+  applyStaticStrings();
+  startNewSession();
+})();
+</script>
+</body>
+</html>
